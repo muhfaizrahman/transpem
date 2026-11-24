@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BPJS-Check Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: a verifier's desk tool, calm, exact, nothing decorative
+   IDEA the claim folder that gets a red "potensi klaim ganda" stamp before it reaches the cashier
+   PICTURE the working screens themselves: queue, risk meter, side-by-side claim comparison
+   COLOUR white panels on pale green-grey, deep green sidebar, red / amber / green for risk only
+   TYPE Plus Jakarta Sans throughout
+   LAYOUT sidebar + content on laptop; top nav strip and stacked panels below 860px */
+:root{color-scheme:light dark;
+--bg:light-dark(#eef2f0,#0b1311);--panel:light-dark(#ffffff,#121c19);--ink:light-dark(#10231f,#e4eeeb);--mute:light-dark(#566a65,#93a7a1);--line:light-dark(#dbe4e0,#25342f);
+--brand:light-dark(#0a6b53,#3cc69a);--onbrand:light-dark(#ffffff,#05241b);--tint:light-dark(#e2f1eb,#163029);--side:light-dark(#0c3a2f,#07110e);
+--hi:light-dark(#c3261f,#ff7a70);--mid:light-dark(#9a5a00,#f2b84b);--ok:light-dark(#17774a,#55d391);
+--hiS:color-mix(in srgb,var(--hi) 11%,var(--panel));--midS:color-mix(in srgb,var(--mid) 13%,var(--panel));--okS:color-mix(in srgb,var(--ok) 11%,var(--panel))}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;line-height:1.15;letter-spacing:-.015em}
+h1{font-size:clamp(24px,3vw,32px);font-weight:700}
+h2{font-size:18px;font-weight:700}
+h3{font-size:15px;font-weight:700}
+p{margin:0}
+a{color:var(--brand)}
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100%}
+.side{background:var(--side);color:#e6f2ee;display:flex;flex-direction:column;padding:20px 14px;gap:4px;position:sticky;top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:800;font-size:18px;color:#fff}
+.logo small{display:block;font-weight:500;font-size:12px;color:#9cc4b6}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#b7d4ca;font-weight:500}
+.nav button:hover{background:#ffffff14;color:#fff}
+.nav button.on{background:#ffffff1f;color:#fff;font-weight:700}
+.nav button:focus-visible,.btn:focus-visible,.chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.nav .n{margin-left:auto;background:#f2b84b;color:#2a1a00;border-radius:99px;font-size:12px;font-weight:700;padding:0 7px}
+.sidefoot{margin-top:auto;display:flex;flex-direction:column;gap:2px;border-top:1px solid #ffffff1f;padding-top:12px}
+.sidefoot button{all:unset;cursor:pointer;padding:8px 12px;border-radius:8px;color:#9cc4b6;font-size:13px}
+.sidefoot button:hover{color:#fff;background:#ffffff14}
+.main{display:flex;flex-direction:column;min-height:100%}
+.top{display:flex;align-items:center;gap:12px;padding:14px max(3vw,16px);background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.top .who{margin-left:auto;display:flex;align-items:center;gap:10px;text-align:right;font-size:13px}
+.top .who b{display:block;font-size:14px}
+.av{width:36px;height:36px;border-radius:50%;background:var(--tint);color:var(--brand);display:grid;place-items:center;font-weight:700;flex:none}
+.bell{position:relative;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;display:grid;place-items:center}
+.bell i{position:absolute;top:-5px;right:-5px;background:var(--hi);color:#fff;font-style:normal;font-size:11px;font-weight:700;border-radius:99px;padding:1px 6px}
+.crumb{font-size:13px;color:var(--mute)}
+.view{padding:24px max(3vw,16px) 48px;display:flex;flex-direction:column;gap:20px;max-width:1240px;width:100%}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 20px;justify-content:space-between}
+.head p{color:var(--mute);margin-top:6px;max-width:70ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.panel>h2,.panel>h3{margin-bottom:12px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi span{color:var(--mute);font-size:13px}
+.kpi b{display:block;font-size:clamp(22px,2.6vw,28px);font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.kpi small{color:var(--mute);font-size:12.5px}
+.kpi.hot{border-color:color-mix(in srgb,var(--hi) 45%,var(--line))}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--mute)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--onbrand)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.red{background:var(--hi);border-color:var(--hi);color:#fff}
+.btn.sm{min-height:34px;padding:0 12px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:99px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12.5px;color:var(--mute);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.click{cursor:pointer}
+tr.click:hover td{background:color-mix(in srgb,var(--brand) 5%,var(--panel))}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nw{white-space:nowrap}
+.id{font-weight:700;white-space:nowrap}
+.mute{color:var(--mute)}
+.small{font-size:13px}
+.st{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px;font-size:12.5px;font-weight:600;white-space:nowrap;background:var(--tint);color:var(--ink)}
+.st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.8}
+.st.ok{background:var(--okS);color:var(--ok)}
+.st.mid{background:var(--midS);color:var(--mid)}
+.st.hi{background:var(--hiS);color:var(--hi)}
+.st.grey{background:color-mix(in srgb,var(--mute) 14%,var(--panel));color:var(--mute)}
+.rule{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px;font-weight:700;margin:1px 2px 1px 0;white-space:nowrap}
+.meter{height:8px;border-radius:99px;background:color-mix(in srgb,var(--mute) 18%,var(--panel));position:relative;overflow:hidden;min-width:60px}
+.meter i{position:absolute;inset:0 auto 0 0;border-radius:99px}
+.meter.big{height:14px;overflow:visible}
+.meter .tk{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.35}
+.scorecell{display:flex;align-items:center;gap:8px;min-width:120px}
+.scorecell b{width:26px;text-align:right;font-variant-numeric:tabular-nums}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}
+input[type=text],input[type=number],input[type=date],input[type=search],select,textarea{font-size:16px;font-weight:400;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:10px 12px;min-height:44px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--brand) 60%,transparent);border-color:var(--brand)}
+textarea{min-height:96px;resize:vertical}
+.hint{font-size:12.5px;font-weight:500;color:var(--mute)}
+.err{color:var(--hi);font-size:13px;font-weight:600}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.form .wide{grid-column:1/-1}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 16px}
+.tabs button{all:unset;cursor:pointer;padding:10px 14px;font-weight:600;color:var(--mute);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--ink);border-color:var(--brand)}
+.alert{display:flex;gap:14px;align-items:flex-start;border-radius:12px;padding:16px 18px;border:1px solid}
+.alert.hi{background:var(--hiS);border-color:color-mix(in srgb,var(--hi) 35%,transparent)}
+.alert.mid{background:var(--midS);border-color:color-mix(in srgb,var(--mid) 35%,transparent)}
+.alert.ok{background:var(--okS);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.alert .ic{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:20px}
+.alert.hi .ic{background:var(--hi)}.alert.mid .ic{background:var(--mid)}.alert.ok .ic{background:var(--ok)}
+.reasons{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.reasons li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.reasons li .w{font-weight:700;font-variant-numeric:tabular-nums;color:var(--mute);white-space:nowrap}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 18px;font-size:14px}
+.kv dt{color:var(--mute)}.kv dd{margin:0;font-weight:600}
+.cmp td:first-child{color:var(--mute);width:24%}
+.cmp td.same{background:var(--hiS);font-weight:700}
+.cmp td.near{background:var(--midS);font-weight:700}
+.tag{font-size:11.5px;font-weight:700;color:var(--hi);margin-left:6px;white-space:nowrap}
+.tag.n{color:var(--mid)}
+.tl{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.tl li{position:relative;font-size:14px}
+.tl li::before{content:"";position:absolute;left:-25px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--panel);border:2px solid var(--brand)}
+.tl li.hot::before{border-color:var(--hi);background:var(--hi)}
+.tl li.me{font-weight:700}
+.tl time{display:block;font-size:12.5px;color:var(--mute)}
+.msg{border-radius:10px;padding:10px 12px;font-size:14px;background:var(--bg);border:1px solid var(--line)}
+.msg.vf{background:var(--tint)}
+.msg b{font-size:12.5px;display:block}
+.msg time{display:block;font-size:12px;color:var(--mute);margin-top:2px}
+.thread{display:flex;flex-direction:column;gap:8px}
+.empty{padding:28px;text-align:center;color:var(--mute)}
+.bars{display:flex;align-items:flex-end;gap:10px;height:200px;padding-top:22px}
+.bars .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+.bars .stack{flex:1;width:100%;max-width:56px;display:flex;flex-direction:column;justify-content:flex-end;position:relative}
+.bars .tot{background:color-mix(in srgb,var(--brand) 22%,var(--panel));border-radius:6px 6px 0 0;position:relative;display:flex;flex-direction:column;justify-content:flex-end}
+.bars .fl{background:var(--hi);border-radius:0}
+.bars .v{position:absolute;top:-20px;left:0;right:0;text-align:center;font-size:12.5px;font-weight:700}
+.bars .lb{font-size:12px;color:var(--mute);white-space:nowrap}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--mute)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.hbar{display:grid;grid-template-columns:minmax(110px,180px) minmax(0,1fr) 36px;gap:10px;align-items:center;font-size:13.5px;padding:5px 0}
+.hbar .t{height:12px;border-radius:99px;background:color-mix(in srgb,var(--mute) 14%,var(--panel))}
+.hbar .t i{display:block;height:100%;border-radius:99px;background:var(--brand)}
+.hbar b{text-align:right;font-variant-numeric:tabular-nums}
+.rulecard{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 20px;align-items:start}
+.rulecard .ps{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.sw{position:relative;width:48px;height:28px;flex:none}
+.sw input{opacity:0;position:absolute;inset:0;cursor:pointer;margin:0}
+.sw span{position:absolute;inset:0;border-radius:99px;background:color-mix(in srgb,var(--mute) 35%,var(--panel));transition:.15s;pointer-events:none}
+.sw span::after{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}
+.sw input:checked+span{background:var(--brand)}
+.sw input:checked+span::after{transform:translateX(20px)}
+.sw input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
+.notif{position:absolute;right:max(3vw,16px);top:64px;width:min(380px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px #0003;z-index:20;max-height:70vh;overflow:auto}
+.notif h3{padding:14px 16px;border-bottom:1px solid var(--line)}
+.notif button{all:unset;display:block;cursor:pointer;padding:12px 16px;border-bottom:1px solid var(--line);font-size:14px;width:100%;box-sizing:border-box}
+.notif button:hover{background:var(--bg)}
+.notif button.un{font-weight:700}
+.notif button.un::before{content:"";display:inline-block;width:8px;height:8px;background:var(--hi);border-radius:50%;margin-right:8px}
+.notif time{display:block;font-size:12px;color:var(--mute);font-weight:400}
+.modal{position:fixed;inset:0;background:#0007;display:grid;place-items:center;padding:16px;z-index:50}
+.modal .box{background:var(--panel);border-radius:14px;padding:22px;width:min(520px,100%);display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow:auto}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:12px 18px;border-radius:10px;font-weight:600;z-index:60;box-shadow:0 8px 24px #0004;max-width:calc(100vw - 32px)}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--tint);border-top-color:var(--brand);animation:sp 0.8s linear infinite;margin:0 auto 14px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.login{min-height:100%;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);background:var(--panel)}
+.lg-art{background:var(--side);color:#e6f2ee;padding:clamp(28px,5vw,64px);display:flex;flex-direction:column;gap:24px;justify-content:center}
+.lg-art h1{font-size:clamp(30px,4vw,46px);color:#fff;line-height:1.05;text-wrap:balance}
+.lg-art p{color:#b7d4ca;font-size:16px;max-width:46ch}
+.lg-art>svg{width:100%;max-width:520px;height:auto}
+.lg-form{padding:clamp(28px,5vw,64px);display:flex;flex-direction:column;gap:16px;justify-content:center;max-width:560px}
+.roles{display:flex;flex-direction:column;gap:10px}
+.roles button{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center}
+.roles button:hover{border-color:var(--brand);background:var(--tint)}
+.roles button:focus-visible{outline:2px solid var(--brand)}
+.roles b{display:block}
+.roles small{color:var(--mute);font-size:13px}
+details.demo{border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:14px}
+details.demo summary{cursor:pointer;font-weight:700}
+details.demo ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+@media (max-width:980px){.g3{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:860px){
+ .app{grid-template-columns:minmax(0,1fr)}
+ .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 12px;gap:8px}
+ .logo{padding:4px 8px}.logo small{display:none}
+ .nav{flex-direction:row;overflow-x:auto;flex:1 1 100%;order:3}
+ .nav button{white-space:nowrap;padding:8px 12px}
+ .sidefoot{margin:0 0 0 auto;flex-direction:row;border:0;padding:0}
+ .top{position:relative}
+ .login{grid-template-columns:minmax(0,1fr)}
+ .lg-art>svg{max-width:380px}
+}
+@media (max-width:640px){
+ .g2,.form{grid-template-columns:minmax(0,1fr)}
+ .top .who span{display:none}
+ .view{padding-top:16px}
+ table{font-size:13px}
+ .stack thead{display:none}.stack tr{display:grid;padding-block:8px;border-bottom:1px solid var(--line)}
+ .stack td{display:flex;justify-content:space-between;gap:12px;border:0;padding:4px 6px;text-align:right}
+ .stack td::before{content:attr(data-l);color:var(--mute);font-size:12.5px;text-align:left}
+ .stack td.num{text-align:right}
+ .cmp td:first-child{width:auto}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="modal"></div>
+<div id="toast"></div>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- master data (fiktif) ---------- */
+const RS=[{id:'RSA',name:'RSUD Sehat Sentosa',kota:'Bekasi',user:'Rina Astuti'},{id:'RSB',name:'RS Harapan Bunda',kota:'Jakarta Timur',user:'Dimas Pratama'},{id:'RSC',name:'RS Medika Utama',kota:'Depok',user:'Laila Nurhasanah'}];
+const rsN=id=>(RS.find(r=>r.id===id)||{}).name||id;
+const PES=[['0001387245561','Andi Saputra'],['0002098834127','Siti Rahmawati'],['0001765520983','Bambang Wijaya'],['0003341209876','Dewi Lestari'],['0002876650341','Rudi Hartono'],['0001023998745','Nur Aini'],['0004412087653','Hendra Gunawan'],['0003098761234','Maya Kusuma'],['0002209987612','Agus Prasetyo'],['0001876543290','Rina Marlina'],['0003765409812','Yusuf Hidayat'],['0002345098761','Fitri Handayani']];
+const pName=no=>(PES.find(p=>p[0]===no)||[])[1];
+const DX={'I20.0':'Angina pektoris tidak stabil','N18.5':'Penyakit ginjal kronik stadium 5','K35.8':'Apendisitis akut','H25.9':'Katarak senilis','M17.1':'Osteoartritis lutut primer','D64.9':'Anemia','K63.5':'Polip kolon','S06.0':'Gegar otak'};
+const TD=[
+ {k:'37.22',n:'Kateterisasi jantung kiri',dx:'I20.0',tarif:12500000,gap:180},
+ {k:'39.95',n:'Hemodialisis',dx:'N18.5',tarif:920000,gap:0},
+ {k:'47.01',n:'Apendektomi laparoskopi',dx:'K35.8',tarif:8400000,gap:99999},
+ {k:'13.41',n:'Fakoemulsifikasi katarak',dx:'H25.9',tarif:6800000,gap:90},
+ {k:'81.54',n:'Penggantian lutut total',dx:'M17.1',tarif:58000000,gap:365},
+ {k:'99.04',n:'Transfusi sel darah merah',dx:'D64.9',tarif:1150000,gap:0},
+ {k:'45.23',n:'Kolonoskopi',dx:'K63.5',tarif:2300000,gap:90},
+ {k:'88.38',n:'CT scan kepala',dx:'S06.0',tarif:1350000,gap:14}];
+const td=k=>TD.find(t=>t.k===k)||{n:k,dx:'',tarif:0,gap:0};
+const RN={R1:'Duplikat persis',R2:'Lintas-RS',R3:'Kasus sudah dibayar',R4:'Tindakan bentrok',R5:'Kemiripan pola'};
+const RD={R1:'Pasien, tindakan/obat, dan tanggal sama',R2:'Pasien dan tindakan sama di RS berbeda, selisih ≤ N hari',R3:'Pasien + diagnosis + tindakan sama dengan klaim yang sudah dibayar',R4:'Tindakan yang tidak lazim berulang dalam waktu singkat',R5:'Tanggal ± N hari dan nominal ± X% mirip klaim sebelumnya'};
+const DEF={R1:{on:true,w:50},R2:{on:true,w:40,n:7},R3:{on:true,w:40},R4:{on:true,w:25},R5:{on:true,w:20,d:3,x:10},hi:40,mid:20};
+const USERS={VF:{name:'Budi Santoso',org:'Verifikator · KC Jakarta Timur'},SV:{name:'Sari Wulandari',org:'Kepala Unit Verifikasi'}};
+const LIVE='2026-10-19';
+
+/* ---------- helpers ---------- */
+const hash=s=>{let h=2166136261;for(const c of s){h=Math.imul(h^c.charCodeAt(0),16777619)>>>0}const x=h.toString(16).toUpperCase().padStart(8,'0');return 'PSN-'+x.slice(0,4)+'-'+x.slice(4,8)};
+const days=(a,b)=>Math.round((Date.parse(a)-Date.parse(b))/864e5);
+const fd=iso=>new Date(iso+'T00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+const ft=ms=>new Date(ms).toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+const rp=n=>'Rp '+Math.round(n).toLocaleString('id-ID');
+const rpS=n=>n>=1e9?'Rp '+(n/1e9).toLocaleString('id-ID',{maximumFractionDigits:2})+' M':n>=1e6?'Rp '+(n/1e6).toLocaleString('id-ID',{maximumFractionDigits:1})+' jt':rp(n);
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const lvl=(s,R)=>s>=R.hi?'hi':s>=R.mid?'mid':'ok';
+const LV={hi:'Risiko Tinggi',mid:'Risiko Sedang',ok:'Aman'};
+
+function detect(c,pool,R){
+ const t=td(c.t),hits=[];
+ for(const p of pool){
+  if(p.id===c.id||p.peserta!==c.peserta||p.status==='Dibatalkan'||p.status==='Draf')continue;
+  const d=Math.abs(days(c.tgl,p.tgl)),same=p.t===c.t,r=[];
+  if(R.R1.on&&same&&d===0)r.push(['R1',`Pasien, tindakan, dan tanggal sama dengan ${p.id} (${rsN(p.rs)}).`]);
+  if(R.R2.on&&same&&p.rs!==c.rs&&d<=R.R2.n)r.push(['R2',`Tindakan yang sama sudah diklaim ${rsN(p.rs)} ${d===0?'pada hari yang sama':d+' hari '+(c.tgl>=p.tgl?'sebelumnya':'sesudahnya')} (${p.id}).`]);
+  if(R.R3.on&&same&&t.gap>0&&p.dx===c.dx&&p.status==='Dibayar'&&d>0&&d<=t.gap)r.push(['R3',`Kasus yang sama (${c.dx}, ${t.n}) sudah dibayar pada ${p.id}, ${fd(p.tgl)}.`]);
+  if(R.R4.on&&same&&t.gap>0&&p.status!=='Dibayar'&&d>0&&d<=t.gap)r.push(['R4',`${t.n} diulang dalam ${d} hari (${p.id}); tidak lazim berulang ${t.gap>=9999?'pada pasien yang sama':'dalam '+t.gap+' hari'}.`]);
+  const pct=Math.abs(c.nom-p.nom)/p.nom*100;
+  if(R.R5.on&&d<=R.R5.d&&!(same&&d===0)&&pct<=R.R5.x)r.push(['R5',`Tanggal berselisih ${d} hari dan nominal mirip (selisih ${pct.toLocaleString('id-ID',{maximumFractionDigits:1})}%) dengan ${p.id}.`]);
+  if(r.length)hits.push({p,r,s:r.reduce((a,[k])=>a+R[k].w,0)});
+ }
+ if(!hits.length)return{score:0,rules:[],match:null,lvl:'ok'};
+ hits.sort((a,b)=>b.s-a.s);
+ const seen={},rules=[];
+ for(const h of hits)for(const[k,txt]of h.r)if(!seen[k]){seen[k]=1;rules.push({k,txt,ref:h.p.id})}
+ rules.sort((a,b)=>a.k<b.k?-1:1);
+ const score=Math.min(100,rules.reduce((a,r)=>a+R[r.k].w,0));
+ return{score,rules,match:hits[0].p.id,lvl:lvl(score,R)};
+}
+
+/* ---------- seed ---------- */
+const SEED=[
+['2026-08-04','RSA',1,'39.95','Dibayar'],['2026-08-11','RSB',2,'37.22','Dibayar'],['2026-08-19','RSC',3,'47.01','Dibayar'],['2026-08-25','RSA',4,'13.41','Dibayar'],
+['2026-09-02','RSB',5,'81.54','Dibayar'],['2026-09-09','RSC',6,'45.23','Dibayar'],['2026-09-15','RSA',7,'88.38','Dibayar'],['2026-09-22','RSB',8,'99.04','Dibayar'],
+['2026-09-30','RSC',9,'37.22','Dibayar'],['2026-10-06','RSA',10,'13.41','Dibayar'],['2026-10-13','RSB',11,'45.23','Dibayar'],
+['2026-10-20','RSA',1,'39.95','Diteruskan'],
+['2026-10-21','RSC',3,'47.01','Ditolak',0,'Pasien kontrol pascaoperasi, tindakan tercatat ulang oleh sistem kami.','Apendektomi tidak dapat diulang; kasus yang sama sudah dibayar pada KLM-2403.'],
+['2026-10-23','RSB',2,'37.22','Disetujui',0,'Kateterisasi kedua terencana (PCI bertahap), resume medis terlampir.','Tindakan bertahap terdokumentasi di resume medis.'],
+['2026-10-27','RSA',6,'88.38','Diteruskan'],['2026-10-28','RSC',11,'39.95','Diteruskan'],
+['2026-10-29','RSB',6,'99.04','Ditandai',1290000,'Transfusi atas indikasi Hb 6,8 g/dL; tidak terkait CT scan.'],
+['2026-11-02','RSA',4,'13.41','Klarifikasi',0,'Operasi katarak mata kiri; mata kanan sudah dioperasi Agustus.','Mohon lampirkan laporan operasi yang menyebutkan sisi mata.'],
+['2026-11-03','RSB',7,'99.04','Diteruskan'],['2026-11-05','RSA',8,'88.38','Diteruskan'],
+['2026-11-05','RSC',8,'88.38','Ditandai',0,'Pasien datang ke IGD kami setelah pulang atas permintaan sendiri dari RS lain.'],
+['2026-11-09','RSB',5,'45.23','Diteruskan'],['2026-11-10','RSA',10,'45.23','Diteruskan'],['2026-11-10','RSA',10,'45.23','Dibatalkan'],
+['2026-11-12','RSB',10,'45.23','Ditandai',0,'Kolonoskopi ulang karena persiapan usus tidak adekuat di RS sebelumnya.'],
+['2026-11-13','RSC',11,'37.22','Diteruskan'],['2026-11-16','RSA',9,'99.04','Diteruskan'],['2026-11-17','RSB',11,'88.38','Diteruskan'],
+['2026-11-19','RSB',5,'45.23','Ditandai',0,'Polipektomi dijadwalkan terpisah dari kolonoskopi diagnostik.','Mohon jelaskan alasan kolonoskopi ulang dalam 10 hari.','Ditemukan polip 2 cm saat kolonoskopi pertama; polipektomi butuh persiapan ulang. Laporan endoskopi terlampir.'],
+['2026-11-20','RSA',1,'39.95','Diteruskan'],['2026-11-21','RSC',2,'88.38','Diteruskan'],['2026-11-23','RSB',4,'99.04','Diteruskan']];
+
+function fresh(){
+ const S={claims:[],log:[],notif:[],rules:JSON.parse(JSON.stringify(DEF)),seq:2401+SEED.length,user:null,view:'login',sel:null,files:{}};
+ S.log.push({at:Date.parse('2026-10-19T08:00'),who:USERS.SV.name,role:'Supervisor',act:'Mengaktifkan aturan R1–R5 (ambang R2 = 7 hari)',obj:'Pengaturan aturan'});
+ SEED.forEach((r,i)=>{
+  const[tgl,rs,pi,t,status,nom,n1,n2,n3]=r,T=td(t),sub=Date.parse(tgl+'T09:00')+i*7*6e4,later=sub+864e5+2*36e5,later2=later+864e5;
+  const c={id:'KLM-'+(2401+i),rs,peserta:PES[pi][0],tgl,dx:T.dx,t,nom:nom||T.tarif,status:'Draf',sub,thread:[],tl:[],klarMasuk:false};
+  c.flag=detect(c,S.claims,S.rules);c.status=status;
+  c.tl.push({at:sub,t:'Diajukan oleh '+rsN(rs)});
+  if(c.flag.lvl!=='ok'){c.tl.push({at:sub,t:`Ditandai ${LV[c.flag.lvl]} (skor ${c.flag.score})`,hot:1});S.log.push({at:sub,who:'Sistem',role:'Sistem',act:`Menandai klaim, skor ${c.flag.score} (${c.flag.rules.map(x=>x.k).join(', ')})`,obj:c.id})}
+  if(status==='Dibatalkan'){c.tl.push({at:sub+6e4,t:'Dibatalkan RS setelah peringatan dini'});S.log.push({at:sub+6e4,who:RS.find(x=>x.id===rs).user,role:'Petugas RS',act:'Membatalkan klaim setelah peringatan dini',obj:c.id})}
+  if(n1){c.thread.push({who:'RS',text:n1,at:sub+6e4});c.tl.push({at:sub+6e4,t:'Tetap dikirim dengan klarifikasi'});S.log.push({at:sub+6e4,who:RS.find(x=>x.id===rs).user,role:'Petugas RS',act:'Tetap mengirim klaim dengan klarifikasi',obj:c.id})}
+  if(status==='Ditolak'||status==='Disetujui'){c.dec={at:later,note:n2,by:USERS.VF.name};c.tl.push({at:later,t:status==='Ditolak'?'Ditolak verifikator: klaim ganda':'Disetujui verifikator',hot:status==='Ditolak'});S.log.push({at:later,who:USERS.VF.name,role:'Verifikator',act:status==='Ditolak'?'Menolak klaim':'Meloloskan klaim',obj:c.id});
+   S.notif.push({role:'RS',rs,text:`${c.id} ${status==='Ditolak'?'ditolak: klaim ganda':'disetujui verifikator'}`,at:later,claim:c.id,read:false})}
+  if(status==='Klarifikasi'||n3){c.thread.push({who:'VF',text:n2,at:later});c.tl.push({at:later,t:'Verifikator meminta klarifikasi'});S.log.push({at:later,who:USERS.VF.name,role:'Verifikator',act:'Meminta klarifikasi',obj:c.id});
+   if(!n3)S.notif.push({role:'RS',rs,text:`Verifikator meminta klarifikasi untuk ${c.id}`,at:later,claim:c.id,read:false})}
+  if(n3){c.thread.push({who:'RS',text:n3,at:later2});c.tl.push({at:later2,t:'RS mengirim klarifikasi'});c.klarMasuk=true;S.log.push({at:later2,who:RS.find(x=>x.id===rs).user,role:'Petugas RS',act:'Mengirim klarifikasi',obj:c.id});
+   S.notif.push({role:'VF',text:`Klarifikasi masuk untuk ${c.id} dari ${rsN(rs)}`,at:later2,claim:c.id,read:false})}
+  if(status==='Ditandai'&&!n3)S.notif.push({role:'VF',text:`${c.id} ditandai ${LV[c.flag.lvl]} (skor ${c.flag.score})`,at:sub+6e4,claim:c.id,read:false});
+  if(status==='Dibayar')c.tl.push({at:sub+14*864e5,t:'Dibayar'});
+  S.claims.push(c);
+ });
+ return S;
+}
+const KEY='bpjscheck-proto-v1';
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.claims)S=fresh();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const ui={form:{},err:'',tab:'manual',batch:[],csv:'',result:null,rsF:'Semua',q:'',vfTab:'need',vf:{risk:'',rule:'',rs:'',q:''},cmp:null,notif:false,logF:{role:'',q:''},checking:false,ruleDraft:null};
+const C=id=>S.claims.find(c=>c.id===id);
+const me=()=>S.user.role==='RS'?{name:RS.find(r=>r.id===S.user.rs).user,org:'Petugas Klaim · '+rsN(S.user.rs)}:USERS[S.user.role];
+const roleName={RS:'Petugas RS',VF:'Verifikator',SV:'Supervisor'};
+function log(act,obj){S.log.push({at:Date.now(),who:me().name,role:roleName[S.user.role],act,obj})}
+function notify(role,rs,text,claim){S.notif.push({role,rs,text,at:Date.now(),claim,read:false})}
+function toast(t){const el=$('#toast');el.innerHTML=`<div class="toast" role="status">${esc(t)}</div>`;clearTimeout(toast.h);toast.h=setTimeout(()=>el.innerHTML='',2600)}
+function go(v,sel){S.view=v;if(sel!==undefined)S.sel=sel;ui.notif=false;save();render();window.scrollTo(0,0)}
+
+/* ---------- small renderers ---------- */
+const STC={Diteruskan:['ok','Diteruskan'],Dibayar:['grey','Dibayar'],Ditandai:['mid','Ditandai · menunggu verifikasi'],Klarifikasi:['mid','Menunggu klarifikasi RS'],Disetujui:['ok','Disetujui'],Ditolak:['hi','Ditolak · klaim ganda'],Dibatalkan:['grey','Dibatalkan RS']};
+const st=s=>{const[c,l]=STC[s]||['grey',s];return `<span class="st ${c}">${l}</span>`};
+const risk=f=>`<span class="st ${f.lvl}">${LV[f.lvl]}</span>`;
+const col=l=>l==='hi'?'var(--hi)':l==='mid'?'var(--mid)':'var(--ok)';
+const meter=(f,big)=>`<div class="meter${big?' big':''}"><i style="width:${f.score}%;background:${col(f.lvl)}"></i>${big?`<span class="tk" style="left:${S.rules.mid}%"></span><span class="tk" style="left:${S.rules.hi}%"></span>`:''}</div>`;
+const rules=f=>f.rules.map(r=>`<span class="rule" title="${RN[r.k]}">${r.k}</span>`).join('')||'<span class="mute">—</span>';
+const tdn=c=>`${td(c.t).n}`;
+const logoSvg=`<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="#3cc69a"/><rect x="8" y="7" width="13" height="17" rx="2" fill="#0c3a2f" opacity=".45"/><rect x="12" y="10" width="13" height="17" rx="2" fill="#fff"/><path d="M15 19l2.6 2.6L23 16" fill="none" stroke="#0a6b53" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function claimTable(list,opts={}){
+ if(!list.length)return `<div class="empty">Tidak ada klaim yang cocok.</div>`;
+ const vf=S.user.role!=='RS';
+ return `<div class="scroll"><table class="stack"><thead><tr><th>ID klaim</th>${vf?'<th>Rumah sakit</th><th>Peserta</th>':'<th>Peserta</th>'}<th>Tgl berobat</th><th>Tindakan</th>${opts.score?'<th>Aturan</th><th>Skor</th>':''}<th class="num">Nominal</th><th>Status</th></tr></thead><tbody>
+ ${list.map(c=>`<tr class="click" data-a="open" data-v="${c.id}" tabindex="0"><td class="id">${c.id}${c.klarMasuk&&vf?' <span class="tag n">klarifikasi masuk</span>':''}</td>${vf?`<td>${esc(rsN(c.rs))}</td><td class="nw">${hash(c.peserta)}</td>`:`<td>${esc(pName(c.peserta))}</td>`}<td class="nw">${fd(c.tgl)}</td><td>${tdn(c)}</td>${opts.score?`<td><span>${rules(c.flag)}</span></td><td><div class="scorecell">${meter(c.flag)}<b>${c.flag.score}</b></div></td>`:''}<td class="num">${rp(c.nom)}</td><td>${st(c.status)}</td></tr>`).join('')}
+ </tbody></table></div>`;
+}
+function threadHtml(c){
+ if(!c.thread.length)return '';
+ return `<div class="thread">${c.thread.map(m=>`<div class="msg ${m.who==='VF'?'vf':''}"><b>${m.who==='VF'?'Verifikator BPJS':esc(rsN(c.rs))}</b>${esc(m.text)}${m.file?`<div class="small mute">Lampiran: ${esc(m.file)}</div>`:''}<time>${ft(m.at)}</time></div>`).join('')}</div>`;
+}
+function tlHtml(c){return `<ul class="tl">${c.tl.map(e=>`<li class="${e.hot?'hot':''}">${esc(e.t)}<time>${ft(e.at)}</time></li>`).join('')}</ul>`}
+function reasonsHtml(f,showW=true){
+ return `<ul class="reasons">${f.rules.map(r=>`<li><span class="rule">${r.k}</span><div><b>${RN[r.k]}</b><div class="small">${esc(r.txt)}</div></div>${showW?`<span class="w">+${S.rules[r.k].w}</span>`:''}</li>`).join('')}</ul>`;
+}
+
+/* ---------- login ---------- */
+function vLogin(){
+ return `<div class="login"><section class="lg-art">
+ <div class="logo" style="padding:0">${logoSvg}<div>BPJS-Check<small>Sistem cek-silang klaim berulang</small></div></div>
+ <h1>Klaim ganda tertahan sebelum dana dibayarkan.</h1>
+ <p>Setiap klaim baru dicocokkan dengan riwayat klaim di semua rumah sakit. Yang mirip diberi tanda dan alasan; keputusan tetap di tangan verifikator.</p>
+ <svg viewBox="0 0 520 250" role="img" aria-label="Dua berkas klaim yang mirip, satu diberi cap potensi klaim ganda">
+  <g transform="translate(40 30) rotate(-5)"><rect width="230" height="180" rx="10" fill="#ffffff" opacity=".14"/><rect width="230" height="180" rx="10" fill="none" stroke="#9cc4b6" opacity=".5"/>
+   <text x="18" y="32" fill="#e6f2ee" font-size="14" font-weight="700">KLM-2420 · RSUD Sehat Sentosa</text>
+   <g fill="#9cc4b6" font-size="12"><text x="18" y="62">Peserta PSN-…</text><text x="18" y="86">CT scan kepala</text><text x="18" y="110">5 Nov 2026</text><text x="18" y="134">Rp 1.350.000</text></g></g>
+  <g transform="translate(250 50) rotate(4)"><rect width="230" height="180" rx="10" fill="#ffffff"/>
+   <text x="18" y="32" fill="#10231f" font-size="14" font-weight="700">KLM-2421 · RS Medika Utama</text>
+   <g fill="#566a65" font-size="12"><text x="18" y="62">Peserta PSN-…</text><text x="18" y="86">CT scan kepala</text><text x="18" y="110">5 Nov 2026</text><text x="18" y="134">Rp 1.350.000</text></g>
+   <g transform="translate(96 118) rotate(-10)"><rect width="128" height="44" rx="6" fill="none" stroke="#c3261f" stroke-width="3"/><text x="64" y="19" text-anchor="middle" fill="#c3261f" font-size="11" font-weight="800">POTENSI</text><text x="64" y="35" text-anchor="middle" fill="#c3261f" font-size="11" font-weight="800">KLAIM GANDA</text></g></g>
+ </svg></section>
+ <section class="lg-form"><h1>Masuk ke prototype</h1><p class="mute">Pilih peran untuk mencoba alurnya. Semua rumah sakit, peserta, dan klaim di sini fiktif.</p>
+ <label class="f">Rumah sakit (untuk peran Petugas RS)<select id="lgRs">${RS.map(r=>`<option value="${r.id}">${esc(r.name)} · ${esc(r.kota)}</option>`).join('')}</select></label>
+ <div class="roles">
+  <button data-a="login" data-v="RS"><span class="av">RS</span><span><b>Petugas Klaim RS</b><small>Ajukan klaim, terima peringatan dini, jawab klarifikasi</small></span><span>›</span></button>
+  <button data-a="login" data-v="VF"><span class="av">VF</span><span><b>Verifikator BPJS</b><small>Periksa klaim bertanda dan putuskan</small></span><span>›</span></button>
+  <button data-a="login" data-v="SV"><span class="av">SV</span><span><b>Supervisor BPJS</b><small>Pantau dampak, atur aturan, baca log audit</small></span><span>›</span></button>
+ </div>
+ <details class="demo"><summary>Skenario demo (5 menit)</summary><ol>
+  <li>Masuk sebagai RS <b>RSUD Sehat Sentosa</b> → Ajukan Klaim → pilih contoh <i>Demo lintas-RS</i> → Cek &amp; Kirim. Hasil: aman.</li>
+  <li>Ganti peran ke RS <b>RS Harapan Bunda</b> → contoh yang sama → hasil: Potensi Klaim Ganda. Pilih <i>Tetap kirim dengan klarifikasi</i>.</li>
+  <li>Masuk sebagai <b>Verifikator</b> → buka klaim kateterisasi dari RS Harapan Bunda → bandingkan → Tolak.</li>
+  <li>Masuk sebagai <b>Supervisor</b> → dana tercegah bertambah.</li>
+  <li>Bonus: sebagai RS, pilih contoh <i>Input ganda</i> → Batalkan klaim.</li></ol></details>
+ </section></div>`;
+}
+
+/* ---------- RS portal ---------- */
+function vRsHome(){
+ const mine=S.claims.filter(c=>c.rs===S.user.rs),nov=mine.filter(c=>c.tgl>='2026-11-01');
+ const cnt=s=>nov.filter(c=>s.includes(c.status)).length;
+ const ask=mine.filter(c=>c.status==='Klarifikasi');
+ const recent=[...mine].sort((a,b)=>b.sub-a.sub).slice(0,5);
+ return `<div class="head"><div><h1>Selamat datang, ${esc(me().name.split(' ')[0])}</h1><p>Ringkasan klaim ${esc(rsN(S.user.rs))} bulan November 2026.</p></div><button class="btn pri" data-a="go" data-v="rs-new">+ Ajukan klaim</button></div>
+ ${ask.map(c=>`<div class="alert mid"><div class="ic">?</div><div style="flex:1"><b>Verifikator meminta klarifikasi untuk ${c.id}</b><p class="small">${esc(c.thread.filter(m=>m.who==='VF').slice(-1)[0]?.text||'')}</p></div><button class="btn sm" data-a="open" data-v="${c.id}">Jawab</button></div>`).join('')}
+ <div class="kpis">
+  <div class="kpi"><span>Klaim diajukan</span><b>${nov.length}</b><small>sejak 1 Nov</small></div>
+  <div class="kpi"><span>Lolos / disetujui</span><b>${cnt(['Diteruskan','Disetujui','Dibayar'])}</b><small>tanpa hambatan</small></div>
+  <div class="kpi"><span>Ditandai</span><b>${cnt(['Ditandai'])}</b><small>menunggu verifikator</small></div>
+  <div class="kpi ${ask.length?'hot':''}"><span>Perlu klarifikasi</span><b>${cnt(['Klarifikasi'])}</b><small>butuh jawaban Anda</small></div>
+  <div class="kpi"><span>Dibatalkan / ditolak</span><b>${cnt(['Dibatalkan','Ditolak'])}</b><small>tidak dibayar</small></div>
+ </div>
+ <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2>Klaim terbaru</h2><button class="btn sm" data-a="go" data-v="rs-list">Lihat semua</button></div>${claimTable(recent)}</div>`;
+}
+function presets(){
+ const rsid=S.user.rs,last=[...S.claims].filter(c=>c.rs===rsid&&c.status==='Diteruskan').sort((a,b)=>b.sub-a.sub)[0];
+ return [
+  {k:'demo',l:'Demo lintas-RS: Andi · kateterisasi',f:{peserta:PES[0][0],tgl:rsid==='RSA'?'2026-11-03':'2026-11-06',t:'37.22',dx:'I20.0',nom:12500000}},
+  last&&{k:'dup',l:`Input ganda: ulangi ${last.id}`,f:{peserta:last.peserta,tgl:last.tgl,t:last.t,dx:last.dx,nom:last.nom}},
+  {k:'norm',l:'Klaim normal: Maya · kolonoskopi',f:{peserta:PES[7][0],tgl:todayISO(),t:'45.23',dx:'K63.5',nom:2300000}}].filter(Boolean);
+}
+function vRsNew(){
+ if(ui.checking)return `<div class="panel" style="padding:56px 20px;text-align:center"><div class="spin"></div><h2>Memeriksa riwayat klaim…</h2><p class="mute" style="margin-top:6px">Mencocokkan dengan klaim di semua rumah sakit</p></div>`;
+ const f=ui.form,nm=pName(f.peserta||'');
+ return `<div class="head"><div><h1>Ajukan klaim</h1><p>Klaim dicek terhadap riwayat lintas-RS sebelum dikirim. Jika mirip klaim lama, Anda bisa membetulkannya sendiri.</p></div></div>
+ <div class="panel"><div class="tabs" role="tablist"><button class="${ui.tab==='manual'?'on':''}" data-a="tab" data-v="manual">Input manual</button><button class="${ui.tab==='upload'?'on':''}" data-a="tab" data-v="upload">Unggah file</button></div>
+ ${ui.tab==='manual'?`
+ <div class="row" style="margin-bottom:16px"><span class="small mute">Isi contoh:</span>${presets().map(p=>`<button class="chip" data-a="preset" data-v="${p.k}">${esc(p.l)}</button>`).join('')}</div>
+ <form class="form" id="fClaim" novalidate>
+  <label class="f">Nomor peserta JKN<input type="text" id="fPes" inputmode="numeric" list="pesList" value="${esc(f.peserta||'')}" placeholder="13 digit" autocomplete="off"><span class="hint" id="pesHint">${nm?'Peserta: '+esc(nm):'Ketik atau pilih nomor peserta demo'}</span></label>
+  <datalist id="pesList">${PES.map(p=>`<option value="${p[0]}">${esc(p[1])}</option>`).join('')}</datalist>
+  <label class="f">Tanggal berobat<input type="date" id="fTgl" value="${esc(f.tgl||'')}" max="${todayISO()}"></label>
+  <label class="f">Tindakan / obat (ICD-9-CM)<select id="fT"><option value="">Pilih tindakan</option>${TD.map(t=>`<option value="${t.k}" ${f.t===t.k?'selected':''}>${t.k} · ${t.n}</option>`).join('')}</select></label>
+  <label class="f">Diagnosis (ICD-10)<select id="fDx"><option value="">Pilih diagnosis</option>${Object.entries(DX).map(([k,v])=>`<option value="${k}" ${f.dx===k?'selected':''}>${k} · ${v}</option>`).join('')}</select></label>
+  <label class="f">Nominal klaim (Rp)<input type="number" id="fNom" min="0" step="1000" value="${f.nom||''}"><span class="hint">Terisi otomatis dari tarif, bisa diubah</span></label>
+  <label class="f">Rumah sakit<input type="text" value="${esc(rsN(S.user.rs))}" disabled></label>
+  ${ui.err?`<p class="err wide">${esc(ui.err)}</p>`:''}
+  <div class="row wide" style="justify-content:flex-end"><button type="button" class="btn" data-a="clear">Kosongkan</button><button type="submit" class="btn pri">Cek &amp; Kirim</button></div>
+ </form>`:vUpload()}</div>`;
+}
+const SAMPLE=`no_peserta,tanggal,kode_tindakan,nominal
+0003098761234,${'2026-11-24'},45.23,2300000
+0002098834127,2026-11-20,39.95,920000
+0002876650341,2026-11-24,99.04,1150000
+0001023998745,2026-11-22,88.38,1350000`;
+function vUpload(){
+ const b=ui.batch;
+ return `<div class="grid g2"><label class="f">File klaim (CSV: no_peserta, tanggal, kode_tindakan, nominal)<input type="file" id="fFile" accept=".csv,text/csv,text/plain"></label>
+ <div class="row" style="align-items:flex-end"><button class="btn" data-a="sample">Gunakan contoh file</button></div></div>
+ ${b.length?`<div class="scroll" style="margin-top:16px"><table class="stack"><thead><tr><th>#</th><th>Peserta</th><th>Tgl berobat</th><th>Tindakan</th><th class="num">Nominal</th><th>Hasil cek</th><th></th></tr></thead><tbody>
+ ${b.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(pName(r.c.peserta)||r.c.peserta)}</td><td class="nw">${r.c.tgl?fd(r.c.tgl):'-'}</td><td>${esc(td(r.c.t).n)}</td><td class="num">${rp(r.c.nom||0)}</td><td>${r.bad?`<span class="err">${esc(r.bad)}</span>`:r.sent?'<span class="st ok">Terkirim</span>':`${risk(r.c.flag)} ${r.c.flag.score?`<span class="small mute">${rules(r.c.flag)}</span>`:''}`}</td><td>${!r.bad&&!r.sent&&r.c.flag.lvl!=='ok'?`<button class="btn sm" data-a="review" data-v="${i}">Tinjau</button>`:''}</td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="row" style="justify-content:flex-end;margin-top:14px"><span class="small mute">${b.filter(r=>!r.bad&&!r.sent&&r.c.flag.lvl==='ok').length} baris aman siap dikirim</span><button class="btn pri" data-a="sendsafe" ${b.some(r=>!r.bad&&!r.sent&&r.c.flag.lvl==='ok')?'':'disabled'}>Kirim baris aman</button></div>`
+ :`<p class="mute small" style="margin-top:14px">Belum ada file. Setiap baris akan dicek sebelum dikirim.</p>`}`;
+}
+function parseCsv(txt){
+ const lines=txt.trim().split(/\r?\n/).filter(Boolean);if(/no_peserta/i.test(lines[0]))lines.shift();
+ return lines.slice(0,200).map(l=>{const[p,tg,k,n]=l.split(/[;,]/).map(s=>s.trim());const T=td(k);
+  const c={peserta:p,tgl:tg,t:k,dx:T.dx,nom:+n||T.tarif};
+  let bad='';if(!pName(p))bad='Peserta tidak dikenal';else if(!/^\d{4}-\d{2}-\d{2}$/.test(tg||''))bad='Tanggal tidak valid';else if(!TD.find(x=>x.k===k))bad='Kode tindakan tidak dikenal';
+  if(!bad)c.flag=detect({...c,id:'_',rs:S.user.rs},S.claims,S.rules);
+  return{c,bad,sent:false}});
+}
+function buildClaim(f){
+ const c={id:'KLM-'+S.seq,rs:S.user.rs,peserta:f.peserta,tgl:f.tgl,dx:f.dx,t:f.t,nom:+f.nom,status:'Draf',sub:Date.now(),thread:[],tl:[],klarMasuk:false};
+ c.flag=detect(c,S.claims,S.rules);return c;
+}
+function commit(c,status,note,file){
+ S.seq++;c.id='KLM-'+(S.seq-1);c.sub=Date.now();c.status=status;
+ c.tl=[{at:c.sub,t:'Diajukan oleh '+rsN(c.rs)}];
+ if(c.flag.lvl!=='ok'){c.tl.push({at:c.sub,t:`Ditandai ${LV[c.flag.lvl]} (skor ${c.flag.score})`,hot:1});S.log.push({at:c.sub,who:'Sistem',role:'Sistem',act:`Menandai klaim, skor ${c.flag.score} (${c.flag.rules.map(x=>x.k).join(', ')})`,obj:c.id})}
+ if(status==='Diteruskan'){log('Mengajukan klaim (lolos cek otomatis)',c.id)}
+ if(status==='Dibatalkan'){c.tl.push({at:c.sub,t:'Dibatalkan RS setelah peringatan dini'});log('Membatalkan klaim setelah peringatan dini',c.id)}
+ if(status==='Ditandai'){c.thread.push({who:'RS',text:note,file,at:c.sub});c.tl.push({at:c.sub,t:'Tetap dikirim dengan klarifikasi'});log('Tetap mengirim klaim dengan klarifikasi',c.id);notify('VF',null,`${c.id} ditandai ${LV[c.flag.lvl]} (skor ${c.flag.score}) dari ${rsN(c.rs)}`,c.id)}
+ S.claims.push(c);save();return c;
+}
+function vRsResult(){
+ const r=ui.result;if(!r)return vRsList();
+ const c=r.c,f=c.flag,ref=f.match&&C(f.match);
+ if(r.sent)return `<div class="alert ok"><div class="ic">✓</div><div><h2>Aman: tidak ditemukan kemiripan</h2><p style="margin-top:4px">Klaim <b>${c.id}</b> sudah terkirim dengan status <b>Diteruskan</b>.</p></div></div>
+  <div class="panel"><dl class="kv"><dt>Peserta</dt><dd>${esc(pName(c.peserta))}</dd><dt>Tanggal berobat</dt><dd>${fd(c.tgl)}</dd><dt>Tindakan</dt><dd>${tdn(c)}</dd><dt>Diagnosis</dt><dd>${c.dx} · ${DX[c.dx]||''}</dd><dt>Nominal</dt><dd>${rp(c.nom)}</dd></dl></div>
+  <div class="row"><button class="btn pri" data-a="go" data-v="rs-new">Ajukan klaim lain</button><button class="btn" data-a="go" data-v="rs-list">Lihat daftar klaim</button></div>`;
+ return `<div class="alert ${f.lvl}"><div class="ic">!</div><div style="flex:1"><h2>Potensi Klaim Ganda · ${LV[f.lvl]}</h2><p style="margin-top:4px">Klaim ini mirip dengan klaim yang sudah ada. Belum terkirim; pilih tindakan di bawah.</p>
+  <div class="row" style="margin-top:12px;gap:14px"><b style="font-size:22px">Skor ${f.score}</b><div style="flex:1;max-width:320px">${meter(f,true)}</div></div></div></div>
+ <div class="grid g3"><div class="panel"><h2>Mengapa ditandai</h2>${reasonsHtml(f)}</div>
+ <div class="panel"><h2>Klaim yang mirip</h2>${ref?`<dl class="kv"><dt>ID</dt><dd>${ref.id}</dd><dt>Rumah sakit</dt><dd>${ref.rs===c.rs?'RS Anda':esc(rsN(ref.rs))}</dd><dt>Peserta</dt><dd>Pasien yang sama</dd><dt>Tanggal</dt><dd>${fd(ref.tgl)}</dd><dt>Tindakan</dt><dd>${tdn(ref)}</dd><dt>Nominal</dt><dd>${rp(ref.nom)}</dd><dt>Status</dt><dd>${st(ref.status)}</dd></dl>`:''}
+ <p class="small mute" style="margin-top:12px">Detail klaim RS lain disamarkan demi privasi pasien.</p></div></div>
+ <div class="panel"><h2>Klaim yang akan dikirim</h2><dl class="kv" style="margin-top:10px"><dt>Peserta</dt><dd>${esc(pName(c.peserta))} · ${c.peserta}</dd><dt>Tanggal berobat</dt><dd>${fd(c.tgl)}</dd><dt>Tindakan</dt><dd>${c.t} · ${tdn(c)}</dd><dt>Diagnosis</dt><dd>${c.dx} · ${DX[c.dx]||''}</dd><dt>Nominal</dt><dd>${rp(c.nom)}</dd></dl></div>
+ <div class="row"><button class="btn" data-a="cancel">Batalkan klaim</button><button class="btn" data-a="fix">Perbaiki data</button><button class="btn pri" data-a="keep">Tetap kirim dengan klarifikasi</button></div>`;
+}
+function vRsList(){
+ const mine=S.claims.filter(c=>c.rs===S.user.rs),q=ui.q.toLowerCase();
+ const F=['Semua','Diteruskan','Ditandai','Klarifikasi','Disetujui','Ditolak','Dibatalkan','Dibayar'];
+ const list=mine.filter(c=>(ui.rsF==='Semua'||c.status===ui.rsF)&&(!q||(c.id+pName(c.peserta)+td(c.t).n).toLowerCase().includes(q))).sort((a,b)=>b.sub-a.sub);
+ return `<div class="head"><div><h1>Daftar klaim</h1><p>${mine.length} klaim ${esc(rsN(S.user.rs))}.</p></div><button class="btn pri" data-a="go" data-v="rs-new">+ Ajukan klaim</button></div>
+ <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div class="chips">${F.map(s=>`<button class="chip ${ui.rsF===s?'on':''}" data-a="rsF" data-v="${s}">${s==='Klarifikasi'?'Perlu klarifikasi':s} <span class="mute">${s==='Semua'?mine.length:mine.filter(c=>c.status===s).length}</span></button>`).join('')}</div>
+ <input type="search" id="q" placeholder="Cari ID, nama, tindakan" value="${esc(ui.q)}" style="max-width:280px" data-f="q"></div>${claimTable(list)}</div>`;
+}
+function vRsDetail(){
+ const c=C(S.sel);if(!c||c.rs!==S.user.rs)return vRsList();
+ return `<div><button class="btn sm" data-a="go" data-v="rs-list">‹ Daftar klaim</button></div>
+ <div class="head"><div><h1>${c.id}</h1><p>${tdn(c)} · ${fd(c.tgl)}</p></div><div class="row">${st(c.status)}${c.flag.lvl!=='ok'?risk(c.flag):''}</div></div>
+ ${c.status==='Klarifikasi'?`<div class="panel" style="border-color:var(--mid)"><h2>Jawab klarifikasi verifikator</h2><div class="thread" style="margin:12px 0">${(()=>{const m=c.thread.filter(x=>x.who==='VF').slice(-1)[0];return m?`<div class="msg vf"><b>Verifikator BPJS</b>${esc(m.text)}<time>${ft(m.at)}</time></div>`:''})()}</div>
+  <label class="f">Jawaban Anda<textarea id="rpTxt" placeholder="Jelaskan alasan klaim ini sah"></textarea></label><label class="f" style="margin-top:12px">Lampiran (opsional)<input type="file" id="rpFile"></label>
+  <p class="err" id="rpErr"></p><div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="reply">Kirim klarifikasi</button></div></div>`:''}
+ <div class="grid g3"><div class="grid" style="align-content:start">
+  <div class="panel"><h2>Data klaim</h2><dl class="kv"><dt>Peserta</dt><dd>${esc(pName(c.peserta))} · ${c.peserta}</dd><dt>Tanggal berobat</dt><dd>${fd(c.tgl)}</dd><dt>Diagnosis</dt><dd>${c.dx} · ${DX[c.dx]||''}</dd><dt>Tindakan</dt><dd>${c.t} · ${tdn(c)}</dd><dt>Nominal</dt><dd>${rp(c.nom)}</dd><dt>Diajukan</dt><dd>${ft(c.sub)}</dd></dl></div>
+  ${c.flag.lvl!=='ok'?`<div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2>Alasan penandaan</h2><b>Skor ${c.flag.score}</b></div>${reasonsHtml(c.flag,false)}</div>`:''}
+  ${c.thread.length?`<div class="panel"><h2>Percakapan klarifikasi</h2>${threadHtml(c)}</div>`:''}
+  ${c.dec?`<div class="panel"><h2>Catatan keputusan</h2><p>${esc(c.dec.note||'Tanpa catatan')}</p><p class="small mute" style="margin-top:6px">${esc(c.dec.by)} · ${ft(c.dec.at)}</p></div>`:''}
+ </div><div class="panel" style="align-self:start"><h2>Riwayat status</h2>${tlHtml(c)}</div></div>`;
+}
+
+/* ---------- Verifikator portal ---------- */
+function vfFilter(list){
+ const v=ui.vf,q=v.q.toLowerCase();
+ return list.filter(c=>(!v.risk||c.flag.lvl===v.risk)&&(!v.rule||c.flag.rules.some(r=>r.k===v.rule))&&(!v.rs||c.rs===v.rs)&&(!q||(c.id+hash(c.peserta)+td(c.t).n).toLowerCase().includes(q)));
+}
+function vVfQueue(){
+ const need=S.claims.filter(c=>c.status==='Ditandai'),wait=S.claims.filter(c=>c.status==='Klarifikasi'),done=S.claims.filter(c=>(c.status==='Disetujui'||c.status==='Ditolak')&&c.flag.lvl!=='ok');
+ const src={need,wait,done}[ui.vfTab];
+ const list=vfFilter(src).sort((a,b)=>ui.vfTab==='done'?b.dec.at-a.dec.at:(b.flag.score-a.flag.score)||(b.sub-a.sub));
+ const v=ui.vf;
+ return `<div class="head"><div><h1>Antrean klaim bertanda</h1><p>Hanya klaim yang mirip klaim lama yang masuk ke sini, diurutkan dari skor risiko tertinggi.</p></div></div>
+ <div class="kpis">
+  <div class="kpi"><span>Perlu keputusan</span><b>${need.length}</b><small>${rp(need.reduce((a,c)=>a+c.nom,0))} ditahan</small></div>
+  <div class="kpi ${need.some(c=>c.flag.lvl==='hi')?'hot':''}"><span>Risiko tinggi</span><b>${need.filter(c=>c.flag.lvl==='hi').length}</b><small>skor ≥ ${S.rules.hi}</small></div>
+  <div class="kpi"><span>Klarifikasi masuk</span><b>${need.filter(c=>c.klarMasuk).length}</b><small>jawaban RS baru</small></div>
+  <div class="kpi"><span>Menunggu RS</span><b>${wait.length}</b><small>klarifikasi diminta</small></div>
+ </div>
+ <div class="panel"><div class="tabs"><button class="${ui.vfTab==='need'?'on':''}" data-a="vfTab" data-v="need">Perlu keputusan (${need.length})</button><button class="${ui.vfTab==='wait'?'on':''}" data-a="vfTab" data-v="wait">Menunggu RS (${wait.length})</button><button class="${ui.vfTab==='done'?'on':''}" data-a="vfTab" data-v="done">Selesai (${done.length})</button></div>
+ <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:12px">
+  <select data-f="vf.risk" aria-label="Filter risiko"><option value="">Semua risiko</option><option value="hi" ${v.risk==='hi'?'selected':''}>Risiko tinggi</option><option value="mid" ${v.risk==='mid'?'selected':''}>Risiko sedang</option></select>
+  <select data-f="vf.rule" aria-label="Filter aturan"><option value="">Semua aturan</option>${Object.keys(RN).map(k=>`<option value="${k}" ${v.rule===k?'selected':''}>${k} · ${RN[k]}</option>`).join('')}</select>
+  <select data-f="vf.rs" aria-label="Filter rumah sakit"><option value="">Semua RS</option>${RS.map(r=>`<option value="${r.id}" ${v.rs===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select>
+  <input type="search" id="vfq" placeholder="Cari ID / peserta" value="${esc(v.q)}" data-f="vf.q"></div>
+ ${claimTable(list,{score:true})}</div>`;
+}
+function vVfClean(){
+ const list=S.claims.filter(c=>c.status==='Diteruskan').sort((a,b)=>b.sub-a.sub);
+ return `<div class="head"><div><h1>Klaim tanpa tanda</h1><p>${list.length} klaim lolos cek otomatis dan diteruskan ke proses klaim biasa. Bisa dipakai untuk pemeriksaan sampel.</p></div></div><div class="panel">${claimTable(list)}</div>`;
+}
+function vVfDetail(){
+ const c=C(S.sel);if(!c)return vVfQueue();
+ const f=c.flag,refs=[...new Set(f.rules.map(r=>r.ref))];
+ const rid=refs.includes(ui.cmp)?ui.cmp:(f.match||refs[0]),o=rid&&C(rid);
+ const cell=(a,b,lab,raw)=>{const same=raw[0]===raw[1];return `<tr><td>${lab}</td><td class="${same?'same':''}">${a}${same?'<span class="tag">sama</span>':''}</td><td class="${same?'same':''}">${b}</td></tr>`};
+ const dd=o?Math.abs(days(c.tgl,o.tgl)):0,np=o?Math.abs(c.nom-o.nom)/o.nom*100:0;
+ const can=c.status==='Ditandai';
+ return `<div><button class="btn sm" data-a="go" data-v="${c.status==='Diteruskan'?'vf-clean':'vf-queue'}">‹ Kembali</button></div>
+ <div class="head"><div><h1>${c.id}</h1><p>${esc(rsN(c.rs))} · diajukan ${ft(c.sub)}</p></div><div class="row">${st(c.status)}${f.lvl!=='ok'?risk(f):''}</div></div>
+ ${c.klarMasuk&&can?`<div class="alert mid"><div class="ic">✉</div><div><b>Klarifikasi masuk dari RS</b><p class="small">RS sudah menjawab pertanyaan Anda. Lihat percakapan di bawah.</p></div></div>`:''}
+ <div class="grid g3"><div class="grid" style="align-content:start">
+ <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2>Perbandingan klaim</h2>${refs.length>1?`<div class="chips">${refs.map(id=>`<button class="chip ${id===rid?'on':''}" data-a="cmp" data-v="${id}">${id}</button>`).join('')}</div>`:''}</div>
+ ${o?`<div class="scroll"><table class="cmp"><thead><tr><th></th><th>Klaim ini · ${c.id}</th><th>Pembanding · ${o.id}</th></tr></thead><tbody>
+  ${cell(hash(c.peserta),hash(o.peserta),'Peserta (ter-hash)',[c.peserta,o.peserta])}
+  <tr><td>Rumah sakit</td><td>${esc(rsN(c.rs))}${c.rs!==o.rs?'<span class="tag n">RS berbeda</span>':''}</td><td>${esc(rsN(o.rs))}</td></tr>
+  <tr><td>Tanggal berobat</td><td class="${dd===0?'same':dd<=S.rules.R2.n?'near':''}">${fd(c.tgl)}${dd===0?'<span class="tag">sama</span>':dd<=S.rules.R2.n?`<span class="tag n">selisih ${dd} hari</span>`:''}</td><td class="${dd===0?'same':dd<=S.rules.R2.n?'near':''}">${fd(o.tgl)}</td></tr>
+  ${cell(c.dx+' · '+(DX[c.dx]||''),o.dx+' · '+(DX[o.dx]||''),'Diagnosis',[c.dx,o.dx])}
+  ${cell(c.t+' · '+tdn(c),o.t+' · '+tdn(o),'Tindakan',[c.t,o.t])}
+  <tr><td>Nominal</td><td class="num ${np===0?'same':np<=S.rules.R5.x?'near':''}" style="text-align:left">${rp(c.nom)}${np===0?'<span class="tag">sama</span>':np<=S.rules.R5.x?`<span class="tag n">selisih ${np.toLocaleString('id-ID',{maximumFractionDigits:1})}%</span>`:''}</td><td class="${np===0?'same':np<=S.rules.R5.x?'near':''}">${rp(o.nom)}</td></tr>
+  <tr><td>Status</td><td>${st(c.status)}</td><td>${st(o.status)}</td></tr></tbody></table></div>
+  <div class="row" style="margin-top:12px"><button class="btn sm" data-a="hist" data-v="${c.peserta}">Riwayat pasien lintas-RS</button><button class="btn sm" data-a="open" data-v="${o.id}">Buka ${o.id}</button></div>`:'<p class="mute">Tidak ada klaim pembanding.</p>'}</div>
+ ${c.thread.length?`<div class="panel"><h2>Klarifikasi</h2>${threadHtml(c)}</div>`:''}
+ ${c.dec?`<div class="panel"><h2>Keputusan</h2><p>${esc(c.dec.note||'Tanpa catatan')}</p><p class="small mute" style="margin-top:6px">${esc(c.dec.by)} · ${ft(c.dec.at)}</p></div>`:''}
+ </div><div class="grid" style="align-content:start">
+ ${f.lvl!=='ok'?`<div class="panel"><h2>Mengapa ditandai</h2><div class="row" style="gap:14px;margin-bottom:14px"><b style="font-size:26px">${f.score}</b><div style="flex:1">${meter(f,true)}<div class="small mute" style="margin-top:6px">Sedang ≥ ${S.rules.mid} · Tinggi ≥ ${S.rules.hi}</div></div></div>${reasonsHtml(f)}<p class="small mute" style="margin-top:12px">Sistem hanya memberi saran. Keputusan ada pada Anda.</p></div>`:''}
+ ${can?`<div class="panel"><h2>Keputusan</h2><div class="grid" style="margin-top:4px"><button class="btn pri" data-a="dec" data-v="ok">Loloskan</button><button class="btn" data-a="dec" data-v="ask">Minta klarifikasi</button><button class="btn red" data-a="dec" data-v="no">Tolak</button></div></div>`:''}
+ <div class="panel"><h2>Riwayat status</h2>${tlHtml(c)}</div></div></div>`;
+}
+function vVfHist(){
+ const p=S.sel,list=S.claims.filter(c=>c.peserta===p).sort((a,b)=>a.tgl<b.tgl?-1:a.tgl>b.tgl?1:a.sub-b.sub);
+ return `<div><button class="btn sm" data-a="back">‹ Kembali</button></div>
+ <div class="head"><div><h1>Riwayat pasien ${hash(p)}</h1><p>${list.length} klaim di ${new Set(list.map(c=>c.rs)).size} rumah sakit. Identitas pasien disamarkan.</p></div></div>
+ <div class="panel"><ul class="tl">${list.map(c=>`<li class="${c.flag.lvl!=='ok'?'hot':''} ${c.id===ui.histFrom?'me':''}"><div class="row" style="justify-content:space-between"><span><b>${fd(c.tgl)}</b> · ${tdn(c)} · ${esc(rsN(c.rs))}</span><span class="row" style="gap:6px">${c.flag.lvl!=='ok'?risk(c.flag):''}${st(c.status)}</span></div><time>${c.id} · ${rp(c.nom)}${c.id===ui.histFrom?' · klaim yang sedang diperiksa':''}</time> <button class="btn sm" style="margin-top:6px" data-a="open" data-v="${c.id}">Buka</button></li>`).join('')}</ul></div>`;
+}
+
+/* ---------- Supervisor portal ---------- */
+function vSvDash(){
+ const chk=S.claims.filter(c=>c.tgl>=LIVE),fl=chk.filter(c=>c.flag.lvl!=='ok');
+ const prevented=chk.filter(c=>(c.status==='Ditolak'||c.status==='Dibatalkan')&&c.flag.lvl!=='ok');
+ const saved=prevented.reduce((a,c)=>a+c.nom,0),pending=chk.filter(c=>c.status==='Ditandai'||c.status==='Klarifikasi');
+ const weeks=[];for(let i=0;i<6;i++){const s=new Date(Date.parse(LIVE)+i*7*864e5),iso=s.toISOString().slice(0,10),e=new Date(s.getTime()+7*864e5).toISOString().slice(0,10);const w=chk.filter(c=>c.tgl>=iso&&c.tgl<e);weeks.push({l:s.toLocaleDateString('id-ID',{day:'numeric',month:'short',timeZone:'UTC'}),t:w.length,f:w.filter(c=>c.flag.lvl!=='ok').length})}
+ const mx=Math.max(1,...weeks.map(w=>w.t));
+ const rc=Object.keys(RN).map(k=>({k,n:fl.filter(c=>c.flag.rules.some(r=>r.k===k)).length})),rm=Math.max(1,...rc.map(r=>r.n));
+ const rsRows=RS.map(r=>{const a=chk.filter(c=>c.rs===r.id),b=a.filter(c=>c.flag.lvl!=='ok');return{r,a:a.length,b:b.length,x:a.filter(c=>c.status==='Ditolak').length,p:a.length?b.length/a.length*100:0}}).sort((a,b)=>b.b-a.b);
+ return `<div class="head"><div><h1>${rpS(saved)} klaim ganda tertahan sebelum dibayar</h1><p>Sejak BPJS-Check aktif ${fd(LIVE)}, dari ${chk.length} klaim yang dicek. Angka dihitung dari data demo.</p></div><button class="btn" data-a="export">Ekspor laporan</button></div>
+ <div class="kpis">
+  <div class="kpi"><span>Klaim diperiksa</span><b>${chk.length}</b><small>sejak ${fd(LIVE)}</small></div>
+  <div class="kpi"><span>Klaim ditandai</span><b>${fl.length}</b><small>${chk.length?(fl.length/chk.length*100).toLocaleString('id-ID',{maximumFractionDigits:1}):0}% dari yang diperiksa</small></div>
+  <div class="kpi hot"><span>Dana tercegah</span><b>${rpS(saved)}</b><small>${prevented.length} klaim ditolak / dibatalkan</small></div>
+  <div class="kpi"><span>Menunggu keputusan</span><b>${pending.length}</b><small>${rpS(pending.reduce((a,c)=>a+c.nom,0))} ditahan</small></div>
+ </div>
+ <div class="grid g3"><div class="panel"><div class="row" style="justify-content:space-between"><h2>Klaim per minggu</h2><div class="legend"><span><i style="background:color-mix(in srgb,var(--brand) 22%,var(--panel))"></i>Diperiksa</span><span><i style="background:var(--hi)"></i>Ditandai</span></div></div>
+  <div class="bars">${weeks.map(w=>`<div class="c"><div class="stack"><div class="tot" style="height:${w.t/mx*100}%"><span class="v">${w.t}</span><div class="fl" style="height:${w.t?w.f/w.t*100:0}%"></div></div></div><span class="lb">${w.l}</span></div>`).join('')}</div></div>
+ <div class="panel"><h2>Aturan yang paling sering terpicu</h2>${rc.map(r=>`<div class="hbar"><span>${r.k} · ${RN[r.k]}</span><span class="t"><i style="width:${r.n/rm*100}%"></i></span><b>${r.n}</b></div>`).join('')}<button class="btn sm" style="margin-top:12px" data-a="go" data-v="sv-rules">Atur aturan</button></div></div>
+ <div class="panel"><h2>Rumah sakit dengan tanda terbanyak</h2><div class="scroll"><table class="stack"><thead><tr><th>Rumah sakit</th><th class="num">Klaim</th><th class="num">Ditandai</th><th class="num">% ditandai</th><th class="num">Ditolak</th></tr></thead><tbody>
+ ${rsRows.map(x=>`<tr><td>${esc(x.r.name)} <span class="mute small">${esc(x.r.kota)}</span></td><td class="num">${x.a}</td><td class="num">${x.b}</td><td class="num">${x.p.toLocaleString('id-ID',{maximumFractionDigits:1})}%</td><td class="num">${x.x}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function vSvRules(){
+ const d=ui.ruleDraft||(ui.ruleDraft=JSON.parse(JSON.stringify(S.rules)));
+ const num=(k,p,lab,unit)=>`<label class="f">${lab}<input type="number" min="0" data-r="${k}.${p}" value="${d[k][p]}"><span class="hint">${unit}</span></label>`;
+ return `<div class="head"><div><h1>Pengaturan aturan</h1><p>Skor klaim = jumlah bobot aturan yang terpicu (maks. 100). Perubahan berlaku untuk pengecekan klaim berikutnya.</p></div><div class="row"><button class="btn" data-a="rdef">Kembalikan default</button><button class="btn pri" data-a="rsave">Simpan</button></div></div>
+ ${Object.keys(RN).map(k=>`<div class="panel rulecard"><div><h2><span class="rule">${k}</span> ${RN[k]}</h2><p class="mute small" style="margin-top:4px">${RD[k]}</p></div>
+  <label class="sw" title="Aktif"><input type="checkbox" data-r="${k}.on" ${d[k].on?'checked':''} aria-label="Aktifkan ${k}"><span></span></label>
+  <div class="ps">${num(k,'w','Bobot','poin ditambahkan ke skor')}${k==='R2'?num(k,'n','Selisih maksimal (N)','hari'):''}${k==='R5'?num(k,'d','Selisih tanggal (N)','hari')+num(k,'x','Selisih nominal (X)','persen'):''}</div></div>`).join('')}
+ <div class="panel"><h2>Ambang label</h2><div class="grid g2" style="margin-top:8px"><label class="f">Risiko sedang mulai dari<input type="number" min="1" data-r="mid" value="${d.mid}"><span class="hint">skor</span></label><label class="f">Risiko tinggi mulai dari<input type="number" min="1" data-r="hi" value="${d.hi}"><span class="hint">skor</span></label></div><p class="small mute" style="margin-top:10px">Di bawah ambang sedang, klaim diteruskan otomatis. Klaim tidak pernah ditolak otomatis.</p></div>`;
+}
+function vSvLog(){
+ const F=ui.logF,q=F.q.toLowerCase();
+ const list=[...S.log].filter(l=>(!F.role||l.role===F.role)&&(!q||(l.who+l.act+l.obj).toLowerCase().includes(q))).sort((a,b)=>b.at-a.at);
+ return `<div class="head"><div><h1>Log audit</h1><p>Setiap penandaan, keputusan, dan perubahan aturan tercatat dan tidak bisa diubah.</p></div></div>
+ <div class="panel"><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:12px"><select data-f="logF.role" aria-label="Filter peran"><option value="">Semua peran</option>${['Sistem','Petugas RS','Verifikator','Supervisor'].map(r=>`<option ${F.role===r?'selected':''}>${r}</option>`).join('')}</select><input type="search" id="lq" placeholder="Cari pengguna, aksi, objek" value="${esc(F.q)}" data-f="logF.q"></div>
+ <div class="scroll"><table class="stack"><thead><tr><th>Waktu</th><th>Pengguna</th><th>Peran</th><th>Aksi</th><th>Objek</th></tr></thead><tbody>
+ ${list.map(l=>`<tr><td class="nw">${ft(l.at)}</td><td>${esc(l.who)}</td><td>${esc(l.role)}</td><td>${esc(l.act)}</td><td class="id">${esc(l.obj)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+/* ---------- shell ---------- */
+const NAV={RS:[['rs-home','Beranda'],['rs-new','Ajukan klaim'],['rs-list','Daftar klaim']],VF:[['vf-queue','Antrean bertanda'],['vf-clean','Klaim tanpa tanda']],SV:[['sv-dash','Dashboard dampak'],['sv-rules','Pengaturan aturan'],['sv-log','Log audit']]};
+const VIEWS={'rs-home':vRsHome,'rs-new':vRsNew,'rs-result':vRsResult,'rs-list':vRsList,'rs-detail':vRsDetail,'vf-queue':vVfQueue,'vf-clean':vVfClean,'vf-detail':vVfDetail,'vf-hist':vVfHist,'sv-dash':vSvDash,'sv-rules':vSvRules,'sv-log':vSvLog};
+const PARENT={'rs-result':'rs-new','rs-detail':'rs-list','vf-detail':'vf-queue','vf-hist':'vf-queue'};
+const myNotif=()=>S.notif.filter(n=>n.role===S.user.role&&(n.role!=='RS'||n.rs===S.user.rs)).sort((a,b)=>b.at-a.at);
+function render(){
+ const root=$('#root');
+ if(!S.user){root.innerHTML=vLogin();return}
+ const u=me(),nav=NAV[S.user.role],cur=PARENT[S.view]||S.view,nn=myNotif(),un=nn.filter(n=>!n.read).length;
+ const cnt={'vf-queue':S.claims.filter(c=>c.status==='Ditandai').length,'rs-list':S.user.role==='RS'?S.claims.filter(c=>c.rs===S.user.rs&&c.status==='Klarifikasi').length:0};
+ let body;try{body=(VIEWS[S.view]||(()=>''))()}catch(e){body=`<div class="panel err">Terjadi kesalahan tampilan: ${esc(e.message)}</div>`}
+ root.innerHTML=`<div class="app"><aside class="side"><div class="logo">${logoSvg}<div>BPJS-Check<small>${{RS:'Portal Rumah Sakit',VF:'Portal Verifikator',SV:'Portal Supervisor'}[S.user.role]}</small></div></div>
+ <nav class="nav">${nav.map(([v,l])=>`<button class="${cur===v?'on':''}" data-a="go" data-v="${v}">${l}${cnt[v]?`<span class="n">${cnt[v]}</span>`:''}</button>`).join('')}</nav>
+ <div class="sidefoot"><button data-a="logout">Ganti peran</button><button data-a="reset">Reset data demo</button></div></aside>
+ <div class="main"><header class="top"><span class="crumb">${esc(S.user.role==='RS'?rsN(S.user.rs):'BPJS Kesehatan · data fiktif')}</span>
+ <div class="who"><button class="bell" data-a="bell" aria-label="Notifikasi, ${un} belum dibaca"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${un?`<i>${un}</i>`:''}</button><span><b>${esc(u.name)}</b>${esc(u.org)}</span><span class="av">${esc(u.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</span></div>
+ ${ui.notif?`<div class="notif"><h3>Notifikasi</h3>${nn.length?nn.map((n,i)=>`<button class="${n.read?'':'un'}" data-a="nopen" data-v="${S.notif.indexOf(n)}">${esc(n.text)}<time>${ft(n.at)}</time></button>`).join(''):'<div class="empty">Belum ada notifikasi.</div>'}</div>`:''}</header>
+ <main class="view">${body}</main></div></div>`;
+ for(const t of root.querySelectorAll('table.stack')){const h=[...t.querySelectorAll('thead th')].map(x=>x.textContent);for(const r of t.querySelectorAll('tbody tr'))[...r.cells].forEach((c,i)=>c.dataset.l=h[i]||'')}
+}
+
+/* ---------- modal ---------- */
+function modal(html){$('#modal').innerHTML=html?`<div class="modal" data-a="mclose-bg"><div class="box" role="dialog" aria-modal="true">${html}</div></div>`:'';const t=$('#modal textarea');if(t)t.focus()}
+function keepModal(){
+ modal(`<h2>Tetap kirim dengan klarifikasi</h2><p class="mute small">Jelaskan mengapa klaim ini sah. Penjelasan Anda dibaca verifikator bersama alasan penandaan.</p>
+ <label class="f">Alasan<textarea id="mTxt" placeholder="Contoh: kontrol ulang sesuai jadwal dokter"></textarea></label>
+ <label class="f">Lampiran dokumen pendukung (opsional)<input type="file" id="mFile"></label><p class="err" id="mErr"></p>
+ <div class="row" style="justify-content:flex-end"><button class="btn" data-a="mclose">Batal</button><button class="btn pri" data-a="keepok">Kirim</button></div>`);
+}
+const DEC={ok:['Loloskan klaim','Klaim akan disetujui dan diteruskan ke pembayaran.','Catatan (opsional)',false,'btn pri'],ask:['Minta klarifikasi','RS akan menerima pertanyaan Anda dan klaim ditahan sampai dijawab.','Pertanyaan untuk RS',true,'btn pri'],no:['Tolak klaim','Klaim ditolak sebagai klaim ganda dan nominalnya dihitung sebagai dana tercegah.','Alasan penolakan',true,'btn red']};
+function decModal(k){
+ const c=C(S.sel),[t,d,l,req,cls]=DEC[k];
+ modal(`<h2>${t}</h2><dl class="kv"><dt>Klaim</dt><dd>${c.id} · ${esc(rsN(c.rs))}</dd><dt>Tindakan</dt><dd>${tdn(c)}</dd><dt>Nominal</dt><dd>${rp(c.nom)}</dd><dt>Skor</dt><dd>${c.flag.score} · ${LV[c.flag.lvl]}</dd></dl><p class="small mute">${d}</p>
+ <label class="f">${l}${req?' *':''}<textarea id="mTxt"></textarea></label><p class="err" id="mErr"></p>
+ <div class="row" style="justify-content:flex-end"><button class="btn" data-a="mclose">Batal</button><button class="${cls}" data-a="decok" data-v="${k}">Konfirmasi</button></div>`);
+}
+
+/* ---------- actions ---------- */
+function readForm(){const g=id=>document.getElementById(id);if(!g('fPes'))return;Object.assign(ui.form,{peserta:g('fPes').value.trim(),tgl:g('fTgl').value,t:g('fT').value,dx:g('fDx').value,nom:g('fNom').value})}
+function submitClaim(){
+ readForm();const f=ui.form;
+ ui.err=!pName(f.peserta)?'Nomor peserta tidak ditemukan. Pilih dari daftar peserta demo.':!f.tgl?'Isi tanggal berobat.':!f.t?'Pilih tindakan.':!f.dx?'Pilih diagnosis.':!(+f.nom>0)?'Isi nominal klaim.':'';
+ if(ui.err)return render();
+ ui.checking=true;render();
+ setTimeout(()=>{ui.checking=false;const c=buildClaim(f);
+  if(c.flag.lvl==='ok'){commit(c,'Diteruskan');ui.result={c,sent:true};ui.form={}}else ui.result={c,sent:false};
+  go('rs-result')},900);
+}
+const A={
+ login(v){S.user={role:v,rs:$('#lgRs').value};S.view={RS:'rs-home',VF:'vf-queue',SV:'sv-dash'}[v];ui.form={};ui.batch=[];ui.ruleDraft=null;save();render();window.scrollTo(0,0)},
+ logout(){S.user=null;ui.notif=false;save();render()},
+ reset(){modal(`<h2>Reset data demo?</h2><p class="mute">Semua klaim, keputusan, dan perubahan aturan yang Anda buat akan dihapus dan data awal dimuat ulang.</p><div class="row" style="justify-content:flex-end"><button class="btn" data-a="mclose">Batal</button><button class="btn red" data-a="resetok">Reset</button></div>`)},
+ resetok(){const u=S.user;S=fresh();S.user=u;S.view=u?{RS:'rs-home',VF:'vf-queue',SV:'sv-dash'}[u.role]:'login';Object.assign(ui,{form:{},batch:[],result:null,ruleDraft:null});modal('');save();render();toast('Data demo dimuat ulang')},
+ go(v){if(v==='rs-new'){ui.err=''}go(v)},
+ open(id){const c=C(id);if(!c)return;if(S.user.role==='RS'){if(c.rs!==S.user.rs)return toast('Klaim RS lain tidak dapat dibuka');go('rs-detail',id)}else{ui.cmp=null;go('vf-detail',id)}},
+ bell(){ui.notif=!ui.notif;render()},
+ nopen(i){const n=S.notif[+i];if(!n)return;n.read=true;save();if(n.claim)A.open(n.claim);else render()},
+ tab(v){readForm();ui.tab=v;render()},
+ preset(k){const p=presets().find(x=>x.k===k);if(p){ui.form={...p.f};ui.err='';render()}},
+ clear(){ui.form={};ui.err='';render()},
+ sample(){ui.batch=parseCsv(SAMPLE);render()},
+ review(i){const r=ui.batch[+i];const c=buildClaim(r.c);ui.batch.splice(+i,1);ui.result={c,sent:false};go('rs-result')},
+ sendsafe(){let n=0;for(const r of ui.batch)if(!r.bad&&!r.sent&&r.c.flag.lvl==='ok'){const c=buildClaim(r.c);if(c.flag.lvl==='ok'){commit(c,'Diteruskan');r.sent=true;n++}else{r.c.flag=c.flag}}render();toast(n+' klaim terkirim')},
+ cancel(){const c=commit(ui.result.c,'Dibatalkan');ui.result=null;ui.form={};toast(c.id+' dibatalkan, tidak dikirim');go('rs-list')},
+ fix(){const c=ui.result.c;ui.form={peserta:c.peserta,tgl:c.tgl,t:c.t,dx:c.dx,nom:c.nom};ui.tab='manual';ui.result=null;go('rs-new')},
+ keep(){keepModal()},
+ keepok(){const t=$('#mTxt').value.trim(),fi=$('#mFile').files[0];if(t.length<10){$('#mErr').textContent='Alasan wajib diisi (minimal 10 karakter).';return}
+  const c=commit(ui.result.c,'Ditandai',t,fi&&fi.name);ui.result=null;ui.form={};modal('');toast(c.id+' dikirim ke verifikator');go('rs-detail',c.id)},
+ reply(){const t=$('#rpTxt').value.trim(),fi=$('#rpFile').files[0];if(t.length<10){$('#rpErr').textContent='Jawaban wajib diisi (minimal 10 karakter).';return}
+  const c=C(S.sel);c.thread.push({who:'RS',text:t,file:fi&&fi.name,at:Date.now()});c.status='Ditandai';c.klarMasuk=true;c.tl.push({at:Date.now(),t:'RS mengirim klarifikasi'});log('Mengirim klarifikasi',c.id);notify('VF',null,`Klarifikasi masuk untuk ${c.id} dari ${rsN(c.rs)}`,c.id);save();toast('Klarifikasi terkirim');render()},
+ rsF(v){ui.rsF=v;render()},
+ vfTab(v){ui.vfTab=v;render()},
+ cmp(v){ui.cmp=v;render()},
+ hist(p){ui.histFrom=S.sel;ui.histBack=S.sel;go('vf-hist',p)},
+ back(){go('vf-detail',ui.histBack)},
+ dec(k){decModal(k)},
+ decok(k){const t=$('#mTxt').value.trim();if(DEC[k][3]&&t.length<5){$('#mErr').textContent='Wajib diisi.';return}
+  const c=C(S.sel),now=Date.now();c.klarMasuk=false;
+  if(k==='ask'){c.status='Klarifikasi';c.thread.push({who:'VF',text:t,at:now});c.tl.push({at:now,t:'Verifikator meminta klarifikasi'});log('Meminta klarifikasi',c.id);notify('RS',c.rs,`Verifikator meminta klarifikasi untuk ${c.id}`,c.id)}
+  else{const ok=k==='ok';c.status=ok?'Disetujui':'Ditolak';c.dec={at:now,note:t,by:USERS.VF.name};c.tl.push({at:now,t:ok?'Disetujui verifikator':'Ditolak verifikator: klaim ganda',hot:!ok});log(ok?'Meloloskan klaim':'Menolak klaim',c.id);notify('RS',c.rs,`${c.id} ${ok?'disetujui verifikator':'ditolak: klaim ganda'}`,c.id)}
+  modal('');save();toast({ok:'Klaim disetujui',ask:'Permintaan klarifikasi terkirim',no:'Klaim ditolak'}[k]);render()},
+ rsave(){const d=ui.ruleDraft;if(!(d.mid>0&&d.hi>d.mid)){toast('Ambang tinggi harus lebih besar dari ambang sedang');return}
+  const ch=[];for(const k of Object.keys(RN))for(const p of Object.keys(d[k]))if(d[k][p]!==S.rules[k][p])ch.push(`${k}.${p}: ${S.rules[k][p]} → ${d[k][p]}`);
+  for(const p of['mid','hi'])if(d[p]!==S.rules[p])ch.push(`ambang ${p}: ${S.rules[p]} → ${d[p]}`);
+  if(!ch.length){toast('Tidak ada perubahan');return}
+  S.rules=JSON.parse(JSON.stringify(d));log('Mengubah aturan: '+ch.join('; '),'Pengaturan aturan');save();toast('Aturan disimpan');render()},
+ rdef(){ui.ruleDraft=JSON.parse(JSON.stringify(DEF));render();toast('Nilai default dimuat, tekan Simpan untuk menerapkan')},
+ export(){modal(`<h2>Ekspor laporan</h2><p class="mute">Di prototype ini ekspor PDF/Excel belum aktif. Pada versi berikutnya, tombol ini mengunduh ringkasan dampak per periode.</p><div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="mclose">Mengerti</button></div>`)},
+ mclose(){modal('')},
+ 'mclose-bg'(v,el,e){if(e.target===el)modal('')}
+};
+document.addEventListener('click',e=>{
+ const el=e.target.closest('[data-a]');
+ if(!el){if(ui.notif&&!e.target.closest('.notif')){ui.notif=false;render()}return}
+ const f=A[el.dataset.a];if(f){if(el.tagName==='BUTTON')e.preventDefault();f(el.dataset.v,el,e)}
+});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&$('#modal').innerHTML){modal('')}
+ if(e.key==='Enter'&&e.target.matches('tr[data-a]'))A.open(e.target.dataset.v);
+});
+document.addEventListener('submit',e=>{if(e.target.id==='fClaim'){e.preventDefault();submitClaim()}});
+document.addEventListener('input',e=>{
+ const t=e.target;
+ if(t.id==='fPes'){ui.form.peserta=t.value.trim();const h=$('#pesHint'),n=pName(ui.form.peserta);if(h)h.textContent=n?'Peserta: '+n:'Ketik atau pilih nomor peserta demo';return}
+ if(t.dataset.r){const[k,p]=t.dataset.r.split('.'),d=ui.ruleDraft;const v=t.type==='checkbox'?t.checked:Math.max(0,+t.value||0);if(p)d[k][p]=v;else d[k]=v;return}
+ if(t.dataset.f&&t.type==='search'){const[a,b]=t.dataset.f.split('.');if(b)ui[a][b]=t.value;else ui[a]=t.value;const id=t.id,pos=t.selectionStart;render();const n=document.getElementById(id);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(x){}}}
+});
+document.addEventListener('change',e=>{
+ const t=e.target;
+ if(t.id==='fT'){readForm();const T=td(t.value);if(t.value){ui.form.dx=T.dx;ui.form.nom=T.tarif}render();return}
+ if(t.id==='fFile'&&t.files[0]){const r=new FileReader();r.onload=()=>{ui.batch=parseCsv(String(r.result));render()};r.readAsText(t.files[0]);return}
+ if(t.dataset.f&&t.tagName==='SELECT'){const[a,b]=t.dataset.f.split('.');if(b)ui[a][b]=t.value;else ui[a]=t.value;render()}
+});
+render();
+}
+</script>
+</body>
+</html>
